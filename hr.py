@@ -12,16 +12,16 @@ st.set_page_config(
 
 # --- Data Loading ---
 @st.cache_data
-def load_data(file_path):
+def load_data(HRDataset_v14.csv):
     """Loads the HR dataset from a CSV file."""
     try:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(HRDataset_v14.csv)
         # Convert date columns to datetime objects
         for col in ['DateofHire', 'DateofTermination', 'LastPerformanceReview_Date']:
             df[col] = pd.to_datetime(df[col], errors='coerce')
         return df
     except FileNotFoundError:
-        st.error(f"Error: The file '{file_path}' was not found. Please make sure the file is in the correct directory.")
+        st.error(f"Error: The file '{HRDataset_v14.csv}' was not found. Please make sure the file is in the correct directory.")
         return None
 
 df = load_data('HRDataset_v14.csv')
