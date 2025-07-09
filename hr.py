@@ -6,24 +6,26 @@ import plotly.graph_objects as go
 # --- Page Configuration ---
 st.set_page_config(
     page_title="HR Analytics Dashboard",
-    page_icon="📊",
+    page_icon="�",
     layout="wide",
 )
 
 # --- Data Loading ---
 @st.cache_data
-def load_data(HRDataset_v14.csv):
+# FIX: The function parameter must be a valid variable name (e.g., 'file_path'), not a string or filename.
+def load_data(file_path):
     """Loads the HR dataset from a CSV file."""
     try:
-        df = pd.read_csv(HRDataset_v14.csv)
+        df = pd.read_csv(file_path)
         # Convert date columns to datetime objects
         for col in ['DateofHire', 'DateofTermination', 'LastPerformanceReview_Date']:
             df[col] = pd.to_datetime(df[col], errors='coerce')
         return df
     except FileNotFoundError:
-        st.error(f"Error: The file '{HRDataset_v14.csv}' was not found. Please make sure the file is in the correct directory.")
+        st.error(f"Error: The file '{file_path}' was not found. Please make sure the file is in the correct directory.")
         return None
 
+# The function is called here with the actual filename.
 df = load_data('HRDataset_v14.csv')
 
 if df is not None:
@@ -169,3 +171,4 @@ if df is not None:
 
 else:
     st.warning("Could not load data. Please check the file path and try again.")
+�
