@@ -2,32 +2,36 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import io # Needed for capturing df.info() output
 
 # Set Streamlit page configuration
 st.set_page_config(layout="wide", page_title="HR Data Analysis Dashboard", page_icon="📊")
 
 @st.cache_data # Cache the data loading to improve performance
-def load_data(filename):
+def load_data(file_input):
     """
     Loads HR data from a CSV file into a pandas DataFrame.
     Uses st.cache_data to cache the function result for performance.
 
     Args:
-        filename (str): The path to the CSV file.
+        file_input (str or UploadedFile): The path to the CSV file (string)
+                                         or a Streamlit UploadedFile object.
 
     Returns:
         pandas.DataFrame: The loaded HR data.
         None: If an error occurs during loading.
     """
     try:
-        df = pd.read_csv(filename)
-        st.success(f"Successfully loaded data from **{filename}**")
+        # pandas.read_csv can directly handle a file-like object (UploadedFile)
+        # or a string path.
+        df = pd.read_csv(file_input)
+        st.success(f"Successfully loaded data from **{file_input.name if hasattr(file_input, 'name') else file_input}**")
         return df
     except FileNotFoundError:
-        st.error(f"Error: The file '{filename}' was not found. Please ensure it's in the correct directory.")
+        st.error(f"Error: The file '{file_input}' was not found. Please ensure it's in the correct directory or upload it.")
         return None
     except pd.errors.EmptyDataError:
-        st.error(f"Error: The file '{filename}' is empty.")
+        st.error(f"Error: The file '{file_input.name if hasattr(file_input, 'name') else file_input}' is empty.")
         return None
     except Exception as e:
         st.error(f"An unexpected error occurred while loading data: {e}")
@@ -49,7 +53,6 @@ def display_basic_info(df):
     st.write("---")
     st.write("**DataFrame Info (Data Types, Non-Null Counts):**")
     # Redirect info to a string buffer to display in Streamlit
-    import io
     buffer = io.StringIO()
     df.info(buf=buffer)
     st.text(buffer.getvalue())
@@ -121,19 +124,21 @@ def main():
     """)
 
     # Define the path to your dataset
-    dataset_path = 'HRDataset_v14.csv'
+    default_dataset_path = 'HRDataset_v14.csv'
 
     # Use a sidebar for dataset path input (optional, but good for flexibility)
     st.sidebar.header("Configuration")
     uploaded_file = st.sidebar.file_uploader("Upload your HR CSV file", type=["csv"])
+
+    hr_df = None # Initialize hr_df
 
     if uploaded_file is not None:
         # If a file is uploaded, use it
         hr_df = load_data(uploaded_file)
     else:
         # Otherwise, try to load from the default path
-        st.sidebar.info(f"No file uploaded. Attempting to load from default path: **{dataset_path}**")
-        hr_df = load_data(dataset_path)
+        st.sidebar.info(f"No file uploaded. Attempting to load from default path: **{default_dataset_path}**")
+        hr_df = load_data(default_dataset_path)
 
     if hr_df is not None:
         # You can add a selection box or tabs for different analyses
@@ -157,4 +162,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
