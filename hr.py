@@ -1,164 +1,67 @@
+
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import io # Needed for capturing df.info() output
+import plotly.express as px
 
-# Set Streamlit page configuration
-st.set_page_config(layout="wide", page_title="HR Data Analysis Dashboard", page_icon="📊")
+# Load data
+df = pd.read_csv("HRDataset_v14.csv")
 
-@st.cache_data # Cache the data loading to improve performance
-def load_data(file_input):
-    """
-    Loads HR data from a CSV file into a pandas DataFrame.
-    Uses st.cache_data to cache the function result for performance.
+# Page setup
+st.set_page_config(page_title="HR Analytics Dashboard", layout="wide")
+st.title("👥 Human Resources Analytics Dashboard")
 
-    Args:
-        file_input (str or UploadedFile): The path to the CSV file (string)
-                                         or a Streamlit UploadedFile object.
+# Sidebar filters
+st.sidebar.header("🔎 Filter Data")
+departments = st.sidebar.multiselect("Select Department", options=df["Department"].unique(), default=df["Department"].unique())
+genders = st.sidebar.multiselect("Select Gender", options=df["GenderID"].unique(), default=df["GenderID"].unique())
 
-    Returns:
-        pandas.DataFrame: The loaded HR data.
-        None: If an error occurs during loading.
-    """
-    try:
-        # pandas.read_csv can directly handle a file-like object (UploadedFile)
-        # or a string path.
-        df = pd.read_csv(file_input)
-        st.success(f"Successfully loaded data from **{file_input.name if hasattr(file_input, 'name') else file_input}**")
-        return df
-    except FileNotFoundError:
-        st.error(f"Error: The file '{file_input}' was not found. Please ensure it's in the correct directory or upload it.")
-        return None
-    except pd.errors.EmptyDataError:
-        st.error(f"Error: The file '{file_input.name if hasattr(file_input, 'name') else file_input}' is empty.")
-        return None
-    except Exception as e:
-        st.error(f"An unexpected error occurred while loading data: {e}")
-        return None
+# Apply filters
+df_filtered = df[(df["Department"].isin(departments)) & (df["GenderID"].isin(genders))]
 
-def display_basic_info(df):
-    """
-    Displays basic information about the DataFrame using Streamlit.
+# KPIs
+total_employees = len(df_filtered)
+avg_age = round(df_filtered["Age"].mean(), 1)
+avg_performance = round(df_filtered["PerformanceScore"].mean(), 2)
+active_count = df_filtered[df_filtered["Termd"] == 0].shape[0]
+terminated_count = df_filtered[df_filtered["Termd"] == 1].shape[0]
 
-    Args:
-        df (pandas.DataFrame): The DataFrame to analyze.
-    """
-    st.subheader("📊 Basic DataFrame Information")
+st.markdown("### 📊 Key Metrics")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Employees", total_employees)
+col2.metric("Average Age", avg_age)
+col3.metric("Avg. Performance", avg_performance)
+col4.metric("Active / Terminated", f"{active_count} / {terminated_count}")
 
-    st.write("---")
-    st.write("**First 5 Rows:**")
-    st.dataframe(df.head())
+# --- Charts ---
+st.markdown("### 📈 Visual Insights")
 
-    st.write("---")
-    st.write("**DataFrame Info (Data Types, Non-Null Counts):**")
-    # Redirect info to a string buffer to display in Streamlit
-    buffer = io.StringIO()
-    df.info(buf=buffer)
-    st.text(buffer.getvalue())
+# Age distribution
+fig_age = px.histogram(df_filtered, x="Age", nbins=20, title="Age Distribution", color_discrete_sequence=["#636EFA"])
+# Gender distribution
+fig_gender = px.pie(df_filtered, names="Sex", title="Gender Distribution", hole=0.4)
+# Department count
+fig_dept = px.bar(df_filtered["Department"].value_counts().reset_index(), x='index', y='Department',
+                  labels={'index':'Department', 'Department':'Count'}, title="Department Breakdown")
+# Termination Reasons
+fig_term_reason = px.histogram(df_filtered[df_filtered["Termd"]==1], x="TermReason", title="Termination Reasons", color_discrete_sequence=["#EF553B"])
+# Performance score distribution
+fig_perf = px.histogram(df_filtered, x="PerformanceScore", title="Performance Score Distribution", nbins=10)
 
-    st.write("---")
-    st.write("**Descriptive Statistics:**")
-    st.dataframe(df.describe())
+# Layout
+col1, col2 = st.columns(2)
+col1.plotly_chart(fig_age, use_container_width=True)
+col2.plotly_chart(fig_gender, use_container_width=True)
 
-def analyze_employment_status(df):
-    """
-    Analyzes and visualizes employment status using Streamlit and Matplotlib/Seaborn.
+col3, col4 = st.columns(2)
+col3.plotly_chart(fig_dept, use_container_width=True)
+col4.plotly_chart(fig_term_reason, use_container_width=True)
 
-    Args:
-        df (pandas.DataFrame): The HR DataFrame.
-    """
-    st.subheader("📈 Employment Status Distribution")
-    if 'EmploymentStatus' in df.columns:
-        status_counts = df['EmploymentStatus'].value_counts()
-        st.write("**Counts of Each Employment Status:**")
-        st.dataframe(status_counts)
+st.plotly_chart(fig_perf, use_container_width=True)
 
-        # Create the plot
-        fig, ax = plt.subplots(figsize=(10, 6))
-        sns.barplot(x=status_counts.index, y=status_counts.values, palette='viridis', ax=ax)
-        ax.set_title('Distribution of Employment Status', fontsize=16)
-        ax.set_xlabel('Employment Status', fontsize=12)
-        ax.set_ylabel('Number of Employees', fontsize=12)
-        plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
-        st.pyplot(fig) # Display plot in Streamlit
-        plt.close(fig) # Close the plot to free memory
-    else:
-        st.warning("The 'EmploymentStatus' column was not found in the dataset.")
+# Footer
+st.markdown("---")
+st.markdown("Made with ❤️ using Streamlit | Dataset © Carla Patalano & Rich Huebner").
 
-def analyze_department_distribution(df):
-    """
-    Analyzes and visualizes department distribution using Streamlit and Matplotlib.
+ 
 
-    Args:
-        df (pandas.DataFrame): The HR DataFrame.
-    """
-    st.subheader("🌐 Employee Distribution Across Departments")
-    if 'Department' in df.columns:
-        department_counts = df['Department'].value_counts()
-        st.write("**Counts of Employees Per Department:**")
-        st.dataframe(department_counts)
-
-        # Create the plot
-        fig, ax = plt.subplots(figsize=(12, 8))
-        ax.pie(department_counts, labels=department_counts.index, autopct='%1.1f%%', startangle=140, cmap='Pastel1',
-               pctdistance=0.85) # pctdistance moves percentages closer to center
-        ax.set_title('Employee Distribution Across Departments', fontsize=16)
-        ax.axis('equal') # Equal aspect ratio ensures that pie is drawn as a circle.
-        plt.tight_layout()
-        st.pyplot(fig) # Display plot in Streamlit
-        plt.close(fig) # Close the plot to free memory
-    else:
-        st.warning("The 'Department' column was not found in the dataset.")
-
-def main():
-    """
-    Main function to run the Streamlit HR analysis dashboard.
-    """
-    st.title("Human Resources Data Analysis Dashboard")
-    st.markdown("""
-    Welcome to the HR Data Analysis Dashboard!
-    This application allows you to explore key metrics and visualizations
-    from your HR dataset.
-    """)
-
-    # Define the path to your dataset
-    default_dataset_path = 'HRDataset_v14.csv'
-
-    # Use a sidebar for dataset path input (optional, but good for flexibility)
-    st.sidebar.header("Configuration")
-    uploaded_file = st.sidebar.file_uploader("Upload your HR CSV file", type=["csv"])
-
-    hr_df = None # Initialize hr_df
-
-    if uploaded_file is not None:
-        # If a file is uploaded, use it
-        hr_df = load_data(uploaded_file)
-    else:
-        # Otherwise, try to load from the default path
-        st.sidebar.info(f"No file uploaded. Attempting to load from default path: **{default_dataset_path}**")
-        hr_df = load_data(default_dataset_path)
-
-    if hr_df is not None:
-        # You can add a selection box or tabs for different analyses
-        st.sidebar.subheader("Analysis Options")
-        analysis_choice = st.sidebar.radio(
-            "Choose an analysis:",
-            ("Basic Info", "Employment Status", "Department Distribution")
-        )
-
-        if analysis_choice == "Basic Info":
-            display_basic_info(hr_df)
-        elif analysis_choice == "Employment Status":
-            analyze_employment_status(hr_df)
-        elif analysis_choice == "Department Distribution":
-            analyze_department_distribution(hr_df)
-    else:
-        st.info("Please load a valid HR dataset to proceed with the analysis.")
-
-    st.markdown("---")
-    st.markdown("Developed with ❤️ using Streamlit")
-
-if __name__ == "__main__":
-    main()
+ 
